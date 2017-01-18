@@ -1,6 +1,10 @@
 package rmi;
 
+import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** RMI skeleton
 
@@ -26,6 +30,7 @@ import java.net.*;
 */
 public class Skeleton<T>
 {
+    private Dispatcher<T> dispatcher;
     /** Creates a <code>Skeleton</code> with no initial server address. The
         address will be determined by the system when <code>start</code> is
         called. Equivalent to using <code>Skeleton(null)</code>.
@@ -47,7 +52,12 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server)
     {
-        throw new UnsupportedOperationException("not implemented");
+        Skeleton.checkInterface(c);
+        try {
+            this.dispatcher = new Dispatcher<T>(c, new ServerSocket(), 20);
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
     }
 
     /** Creates a <code>Skeleton</code> with the given initial server address.
@@ -70,7 +80,14 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server, InetSocketAddress address)
     {
-        throw new UnsupportedOperationException("not implemented");
+        Skeleton.checkInterface(c);
+        try {
+            ServerSocket serverSocket = new ServerSocket();
+            serverSocket.bind(address);
+            this.dispatcher = new Dispatcher<>(c, serverSocket, 20);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /** Called when the listening thread exits.
@@ -93,6 +110,9 @@ public class Skeleton<T>
      */
     protected void stopped(Throwable cause)
     {
+        synchronized (this) {
+            this.dispatcher.stop();
+        }
     }
 
     /** Called when an exception occurs at the top level in the listening
@@ -112,7 +132,6 @@ public class Skeleton<T>
      */
     protected boolean listen_error(Exception exception)
     {
-        return false;
     }
 
     /** Called when an exception occurs at the top level in a service thread.
@@ -124,6 +143,7 @@ public class Skeleton<T>
      */
     protected void service_error(RMIException exception)
     {
+
     }
 
     /** Starts the skeleton server.
@@ -141,7 +161,7 @@ public class Skeleton<T>
      */
     public synchronized void start() throws RMIException
     {
-        throw new UnsupportedOperationException("not implemented");
+
     }
 
     /** Stops the skeleton server, if it is already running.
@@ -156,5 +176,19 @@ public class Skeleton<T>
     public synchronized void stop()
     {
         throw new UnsupportedOperationException("not implemented");
+    }
+
+    private static <T> void checkInterface(Class<T> c) {
+        for (Method method: c.getMethods()) {
+            boolean interfaceMismatch = true;
+            for (Class<?> excType: method.getExceptionTypes()) {
+                if (excType.equals(RMIException.class)) {
+                    interfaceMismatch = false;
+                }
+            }
+            if (interfaceMismatch) {
+                throw new Error(c.getName() + " does not represent a remote interface");
+            }
+        }
     }
 }
