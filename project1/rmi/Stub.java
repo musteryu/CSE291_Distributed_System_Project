@@ -66,7 +66,7 @@ public abstract class Stub
 
         InetSocketAddress address = skeleton.getAddress();
         if (skeleton.getHostName().equals("0.0.0.0") && skeleton.getPortNumber() != -1){
-            address = InetSocketAddress.getLocalHost(); //Set to local host
+            // address = InetSocketAddress.getLocalHost(); Set to local host
         }
         StubInvocationHandler handler = new StubInvocationHandler(c, address);
 
@@ -146,7 +146,17 @@ public abstract class Stub
      */
     public static <T> T create(Class<T> c, InetSocketAddress address)
     {
-        throw new UnsupportedOperationException("not implemented");
+        // Check exceptions
+        if (c == null || address == null){
+            throw new NullPointerException("Interface/Address is null");
+        } else if (!checkRMI(c)){
+            throw new Error("Given class is not an RMI");
+        }
+        StubInvocationHandler handler = new StubInvocationHandler(c, address);
+        Object instance = Proxy.newProxyInstance(c.getClassLoader(),
+            new Class[] { c },
+            handler);
+        return (T) instance;
     }
 
     /**
