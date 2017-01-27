@@ -1,6 +1,9 @@
 package rmi;
 
+import java.lang.reflect.Method;
 import java.net.*;
+import java.lang.reflect.Proxy;
+import java.lang.reflect.InvocationHandler;
 
 /** RMI stub factory.
 
@@ -48,7 +51,29 @@ public abstract class Stub
     public static <T> T create(Class<T> c, Skeleton<T> skeleton)
         throws UnknownHostException
     {
-        throw new UnsupportedOperationException("not implemented");
+        // Checking exceptions
+        if (c == null || skeleton == null){
+            throw new NullPointerException("Interface/Skeleton is null");
+        } else if (skeleton.getHostName() == null ||skeleton.getAddress() == null){
+            throw new IllegalStateException("Skeleton has no assigned address");
+        } else if (false /* Skeleton is not on*/) {
+            throw new IllegalStateException("Skeleton is not on");
+        } else if (false /* Skeleton address is falsy */) {
+            throw new UnknownHostException("Skeleton address not found");
+        } else if (!checkRMI(c)) {
+            throw new Error("Given class is not an RMI");
+        }
+
+        InetSocketAddress address = skeleton.getAddress();
+        if (skeleton.getHostName().equals("0.0.0.0") && skeleton.getPortNumber() != -1){
+            // address = InetSocketAddress.getLocalHost(); Set to local host
+        }
+        StubInvocationHandler handler = new StubInvocationHandler(c, address);
+
+        Object instance = Proxy.newProxyInstance(c.getClassLoader(),
+            new Class[] { c },
+            handler);
+        return (T) instance;
     }
 
     /** Creates a stub, given a skeleton with an assigned address and a hostname
@@ -84,7 +109,22 @@ public abstract class Stub
     public static <T> T create(Class<T> c, Skeleton<T> skeleton,
                                String hostname)
     {
-        throw new UnsupportedOperationException("not implemented");
+        // Checking exceptions
+        if (c == null || skeleton == null || hostname == null){
+            throw new NullPointerException("Interface/Skeleton/Hostname is null");
+        } else if (skeleton.getPortNumber() == null){
+            throw new IllegalStateException("Skeleton has no port");
+        } else if (false /* Skeleton is not on*/) {
+            throw new IllegalStateException("Skeleton is not on");
+        }  else if (!checkRMI(c)) {
+            throw new Error("Given class is not an RMI");
+        }
+        skeleton.setHostname(hostname);
+        StubInvocationHandler handler = new StubInvocationHandler(c, skeleton.getAddress());
+        Object instance = Proxy.newProxyInstance(c.getClassLoader(),
+            new Class[] { c },
+            handler);
+        return (T) instance;
     }
 
     /** Creates a stub, given the address of a remote server.
@@ -106,6 +146,38 @@ public abstract class Stub
      */
     public static <T> T create(Class<T> c, InetSocketAddress address)
     {
-        throw new UnsupportedOperationException("not implemented");
+        // Check exceptions
+        if (c == null || address == null){
+            throw new NullPointerException("Interface/Address is null");
+        } else if (!checkRMI(c)){
+            throw new Error("Given class is not an RMI");
+        }
+        StubInvocationHandler handler = new StubInvocationHandler(c, address);
+        Object instance = Proxy.newProxyInstance(c.getClassLoader(),
+            new Class[] { c },
+            handler);
+        return (T) instance;
+    }
+
+    /**
+     * Helper method to check whether the given class is an RMI
+     * @param c
+     * @param <T>
+     * @return
+     */
+    protected static <T> boolean checkRMI(Class<T> c) {
+        if(!c.isInterface()) {
+            return false;
+        }
+        Method[] methods = c.getMethods();
+        for(Method m : methods){
+            Class[] exceptions = m.getExceptionTypes();
+            for (Class e : exceptions){
+                if(e.getName().contains("RMIException")){
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

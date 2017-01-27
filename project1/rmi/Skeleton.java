@@ -1,6 +1,7 @@
 package rmi;
 
 import java.net.*;
+import java.lang.*;
 
 /** RMI skeleton
 
@@ -45,9 +46,10 @@ public class Skeleton<T>
         @throws NullPointerException If either of <code>c</code> or
                                      <code>server</code> is <code>null</code>.
      */
+    private T server = null;
     public Skeleton(Class<T> c, T server)
     {
-        throw new UnsupportedOperationException("not implemented");
+        this.server = server;
     }
 
     /** Creates a <code>Skeleton</code> with the given initial server address.
@@ -156,5 +158,17 @@ public class Skeleton<T>
     public synchronized void stop()
     {
         throw new UnsupportedOperationException("not implemented");
+    }
+    public synchronized Integer getPortNumber() {
+        return 0;
+    }
+    public synchronized String getHostName() {
+        return "";
+    }
+
+    public synchronized InetSocketAddress getAddress() {
+        return null;
+    }
+    public synchronized void setHostname(String hostname) {
     }
 }
