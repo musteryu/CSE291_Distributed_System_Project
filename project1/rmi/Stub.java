@@ -1,7 +1,7 @@
 package rmi;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
+
 import java.lang.reflect.Proxy;
 import java.net.*;
 
@@ -51,14 +51,21 @@ public abstract class Stub
     public static <T> T create(Class<T> c, rmi.Skeleton<T> skeleton)
         throws UnknownHostException
     {
-        InvocationHandler handler = new InvocationHandler() {
-            @Override
-            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                // TODO: Invoke remote method of skeleton
-                return null;
-            }
-        };
-        return (T) Proxy.newProxyInstance(c.getClassLoader(), new Class[] {c.getClass()},  handler);
+        RMIUtil.checkNotNull(c, skeleton);
+        RMIUtil.checkInterface(c);
+        if (skeleton.getInetAddress() == null)
+            throw new IllegalStateException("Skeleton has not been assigned an address");
+        if (!skeleton.isStarted())
+            throw new IllegalStateException("Skeleton has not been started");
+        if (skeleton.getInetAddress() == null)
+            throw new UnknownHostException("no address can be found for the local host");
+
+        InetSocketAddress address = skeleton.getLocalSocketAddress();
+        StubInvocationHandler handler = new StubInvocationHandler(c, address);
+        Object instance = Proxy.newProxyInstance(c.getClassLoader(),
+                new Class[] { c },
+                handler);
+        return (T) instance;
     }
 
     /** Creates a stub, given a skeleton with an assigned address and a hostname
@@ -94,7 +101,15 @@ public abstract class Stub
     public static <T> T create(Class<T> c, Skeleton<T> skeleton,
                                String hostname)
     {
-        throw new UnsupportedOperationException("not implemented");
+        // Checking exceptions
+        RMIUtil.checkNotNull(c, skeleton, hostname);
+        RMIUtil.checkInterface(c);
+
+        StubInvocationHandler handler = new StubInvocationHandler(c,
+                new InetSocketAddress(hostname, skeleton.getLocalPort()));
+        Object instance = Proxy.newProxyInstance(c.getClassLoader(),
+                new Class[] { c }, handler);
+        return (T) instance;
     }
 
     /** Creates a stub, given the address of a remote server.
@@ -116,6 +131,11 @@ public abstract class Stub
      */
     public static <T> T create(Class<T> c, InetSocketAddress address)
     {
-        throw new UnsupportedOperationException("not implemented");
+        RMIUtil.checkNotNull(c, address);
+        RMIUtil.checkInterface(c);
+        StubInvocationHandler handler = new StubInvocationHandler(c, address);
+        Object instance = Proxy.newProxyInstance(c.getClassLoader(),
+                new Class[] { c }, handler);
+        return (T) instance;
     }
 }

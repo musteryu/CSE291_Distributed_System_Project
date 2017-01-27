@@ -1,8 +1,13 @@
 package rmi;
 
-import java.io.IOException;
+import rmi.RMIUtil;
+
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -30,7 +35,14 @@ import java.util.concurrent.Executors;
 */
 public class Skeleton<T>
 {
-    private Dispatcher<T> dispatcher;
+    private ServerSocket serverSocket;
+    private SocketAddress address;
+    private ExecutorService pool;
+    private T impl;
+    private Listener listener;
+    private boolean isStarted;
+    private static final int THREAD_NUM = 10;
+
     /** Creates a <code>Skeleton</code> with no initial server address. The
         address will be determined by the system when <code>start</code> is
         called. Equivalent to using <code>Skeleton(null)</code>.
@@ -52,12 +64,11 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server)
     {
-        Skeleton.checkInterface(c);
-        try {
-            this.dispatcher = new Dispatcher<T>(c, new ServerSocket(), 20);
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
+        RMIUtil.checkInterface(c);
+        RMIUtil.checkNotNull(c, server);
+        this.impl = server;
+        this.pool = Executors.newFixedThreadPool(THREAD_NUM);
+        this.isStarted = false;
     }
 
     /** Creates a <code>Skeleton</code> with the given initial server address.
@@ -80,14 +91,12 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server, InetSocketAddress address)
     {
-        Skeleton.checkInterface(c);
-        try {
-            ServerSocket serverSocket = new ServerSocket();
-            serverSocket.bind(address);
-            this.dispatcher = new Dispatcher<>(c, serverSocket, 20);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        RMIUtil.checkInterface(c);
+        RMIUtil.checkNotNull(c, server);
+        this.impl = server;
+        this.address = address;
+        this.pool = Executors.newFixedThreadPool(THREAD_NUM);
+        this.isStarted = false;
     }
 
     /** Called when the listening thread exits.
@@ -110,9 +119,7 @@ public class Skeleton<T>
      */
     protected void stopped(Throwable cause)
     {
-        synchronized (this) {
-            this.dispatcher.stop();
-        }
+
     }
 
     /** Called when an exception occurs at the top level in the listening
@@ -132,6 +139,7 @@ public class Skeleton<T>
      */
     protected boolean listen_error(Exception exception)
     {
+        return false;
     }
 
     /** Called when an exception occurs at the top level in a service thread.
@@ -159,9 +167,17 @@ public class Skeleton<T>
                              or when the server has already been started and has
                              not since stopped.
      */
-    public synchronized void start() throws RMIException
+    public synchronized void start() throws rmi.RMIException
     {
-
+        try {
+            serverSocket = new ServerSocket();
+            serverSocket.bind(address);
+            listener = new Listener(serverSocket);
+            new Thread(listener).start();
+            isStarted = true;
+        } catch (IOException e) {
+            throw new rmi.RMIException(e.getMessage(), e.getCause());
+        }
     }
 
     /** Stops the skeleton server, if it is already running.
@@ -175,19 +191,146 @@ public class Skeleton<T>
      */
     public synchronized void stop()
     {
-        throw new UnsupportedOperationException("not implemented");
+        listener.closeListener();
+        isStarted = false;
     }
 
-    private static <T> void checkInterface(Class<T> c) {
-        for (Method method: c.getMethods()) {
-            boolean interfaceMismatch = true;
-            for (Class<?> excType: method.getExceptionTypes()) {
-                if (excType.equals(RMIException.class)) {
-                    interfaceMismatch = false;
+    /**
+     * Returns the address of the endpoint this socket is bound to.
+     * @return server socket address, <code>null</code> when no address assigned.
+     */
+    public InetSocketAddress getLocalSocketAddress() {
+        return ((InetSocketAddress) serverSocket.getLocalSocketAddress());
+    }
+
+    /**
+     * Get local port number
+     * @return the port number to which this socket is listening or
+     *          -1 if the socket is not bound yet.
+     */
+    public int getLocalPort() {
+        return serverSocket.getLocalPort();
+    }
+
+    /**
+     * Returns the local address of this server socket.
+     * @return the address to which this socket is bound,
+     *         or the loopback address if denied by the security manager,
+     *         or {@code null} if the socket is unbound.
+     */
+    public InetAddress getInetAddress() {
+        return serverSocket.getInetAddress();
+    }
+
+    /**
+     * Whether the listener has been started;
+     * @return true when listener has been started and false otherwise.
+     */
+    public boolean isStarted() {
+        return this.isStarted;
+    }
+
+
+    /**
+     * Listener for incoming requests, only starts when wrapped in a thread.
+     */
+    private class Listener implements Runnable {
+        private ServerSocket serverSocket;
+        private boolean isClosed;
+        private final T impl = Skeleton.this.impl;
+        private final ExecutorService pool = Skeleton.this.pool;
+        Listener(ServerSocket serverSocket) {
+            this.isClosed = false;
+            this.serverSocket = serverSocket;
+        }
+
+        Listener() {
+            this(null);
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (!isClosed) {
+                    Socket socket = serverSocket.accept();
+                    this.pool.submit(new Worker(socket));
                 }
+            } catch (IOException e) {
+                Skeleton.this.listen_error(e);
+                e.printStackTrace();
+            } finally {
+                this.pool.shutdownNow();
             }
-            if (interfaceMismatch) {
-                throw new Error(c.getName() + " does not represent a remote interface");
+        }
+
+        public void closeListener() {
+            this.isClosed = true;
+        }
+
+        public boolean isClosed() {
+            return this.isClosed;
+        }
+    }
+
+    private class Worker implements Runnable {
+        private Socket socket;
+        private final T impl = Skeleton.this.impl;
+        Worker(Socket socket) {
+            this.socket = socket;
+        }
+
+        @Override
+        public void run() {
+            ObjectOutputStream ous = null;
+            try {
+                ous = new ObjectOutputStream(this.socket.getOutputStream());
+//                ous.flush();
+                ObjectInputStream ois = new ObjectInputStream(this.socket.getInputStream());
+                Object ret = invoke(ois);
+                ous.writeObject(Either.left(ret));
+                ous.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (Exception e) {
+                try {
+                    ous.writeObject(Either.right(e));
+                    ous.flush();
+                } catch (IOException ioe) {
+                    e.printStackTrace();
+                }
+            } finally {
+                closeSocket();
+            }
+        }
+
+        private Object invoke(ObjectInputStream ois) throws
+                    ClassNotFoundException,
+                    IOException,
+                    NoSuchMethodException,
+                    InvocationTargetException,
+                    IllegalAccessException {
+                String methodName = ((String) ois.readObject());
+                Object typeName = null, arg = null;
+                List<Class<?>> types = new ArrayList<>();
+                List<Object> args = new ArrayList<>();
+                while ((typeName = ois.readObject()) != null &&
+                        (arg = ois.readObject()) != null) {
+                    types.add(Class.forName((String) typeName));
+                    args.add(arg);
+                }
+                Class[] typeArr = new Class[types.size()];
+                Object[] argArr = new Object[args.size()];
+                types.toArray(typeArr);
+                args.toArray(argArr);
+                Method method = this.impl.getClass().getMethod(methodName, typeArr);
+                return method.invoke(this.impl, argArr);
+        }
+
+        private void closeSocket() {
+            try {
+                this.socket.close();
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
             }
         }
     }
