@@ -20,7 +20,7 @@ import java.net.*;
  */
 public abstract class Stub
 {
-    /** Creates a stub, given a skeleton with an assigned adress.
+    /** Creates a stub, given a skeleton with an assigned address.
 
         <p>
         The stub is assigned the address of the skeleton. The skeleton must
@@ -53,14 +53,15 @@ public abstract class Stub
     {
         RMIUtil.checkNotNull(c, skeleton);
         RMIUtil.checkInterface(c);
-        if (skeleton.getInetAddress() == null)
+//        if (!skeleton.isActive())
+//            throw new IllegalStateException("Skeleton has not been started");
+        if (skeleton.getSocketAddress() == null)
             throw new IllegalStateException("Skeleton has not been assigned an address");
-        if (!skeleton.isStarted())
-            throw new IllegalStateException("Skeleton has not been started");
-        if (skeleton.getInetAddress() == null)
-            throw new UnknownHostException("no address can be found for the local host");
-
-        InetSocketAddress address = skeleton.getLocalSocketAddress();
+        InetSocketAddress address = skeleton.getSocketAddress();
+        if (address.getHostName().equals("0.0.0.0") && address.getPort() != -1) {
+            address.getAddress().getLocalHost();
+        }
+        System.out.println("> Stub gets address from skeleton: " + address);
         StubInvocationHandler handler = new StubInvocationHandler(c, address);
         Object instance = Proxy.newProxyInstance(c.getClassLoader(),
                 new Class[] { c },
@@ -80,7 +81,7 @@ public abstract class Stub
         <p>
         This method should be used when the stub is created together with the
         skeleton, but firewalls or private networks prevent the system from
-        automatically assigning a valid externally-routable address to the
+        automatically assigning a complete externally-routable address to the
         skeleton. In this case, the creator of the stub has the option of
         obtaining an externally-routable address by other means, and specifying
         this hostname to this method.
@@ -104,9 +105,19 @@ public abstract class Stub
         // Checking exceptions
         RMIUtil.checkNotNull(c, skeleton, hostname);
         RMIUtil.checkInterface(c);
+//        if (-1 == skeleton.getLocalPort()) {
+//            throw new IllegalStateException("Skeleton has not been assigned a port");
+//        }
+        if (skeleton.getSocketAddress() == null) {
+            throw new IllegalStateException("Skeleton has no address assigned");
+        }
+        if (!skeleton.isActive()) {
+            throw new IllegalStateException("Skeleton has not been started");
+        }
 
+        System.out.println("> Stub gets the address from skeleton: " + skeleton.getSocketAddress());
         StubInvocationHandler handler = new StubInvocationHandler(c,
-                new InetSocketAddress(hostname, skeleton.getLocalPort()));
+                new InetSocketAddress(hostname, skeleton.getSocketAddress().getPort()));
         Object instance = Proxy.newProxyInstance(c.getClassLoader(),
                 new Class[] { c }, handler);
         return (T) instance;
@@ -134,7 +145,7 @@ public abstract class Stub
         RMIUtil.checkNotNull(c, address);
         RMIUtil.checkInterface(c);
         StubInvocationHandler handler = new StubInvocationHandler(c, address);
-        Object instance = Proxy.newProxyInstance(c.getClassLoader(),
+        Object instance = Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(),
                 new Class[] { c }, handler);
         return (T) instance;
     }

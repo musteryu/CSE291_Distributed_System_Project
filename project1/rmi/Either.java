@@ -1,34 +1,44 @@
 package rmi;
 
-import java.io.Serializable;
-public class Either implements Serializable{
-    public enum Case {
-        LEFT, RIGHT
-    }
-    private Object left;
-    private Throwable right;
-    private Case sf;
+/**
+ * Created by musteryu on 2017/1/28.
+ */
+class Either<T, E> {
+    private T l;
+    private E r;
 
-    private Either(Object o) {
-        this.left = o;
-        this.sf = Case.LEFT;
+    Either(T l, E r) {
+        this.l = l;
+        this.r = r;
     }
 
-    private Either(Exception ex){
-        this.right = ex;
-        this.sf = Case.RIGHT;
+    static <T, E> Either<T, E> left(T obj) {
+        return new Either<>(obj, null);
     }
 
-    public static Either left(Object obj) {
-        return new Either(obj);
+    static <T, E> Either<T, E> right(E e) {
+        return new Either<>(null, e);
     }
 
-    public static Either right(Throwable t) {
-        return new Either(t);
+    boolean isLeft() {
+        return this.l != null;
     }
 
-    public Object getLeftOrThrowRight() throws Throwable {
-        if (this.sf == Case.LEFT) return this.left;
-        else throw this.right;
+    boolean isRight() {
+        return this.r != null;
+    }
+
+    T getLeft() {
+        return l;
+    }
+
+    E getRight() {
+        return r;
+    }
+
+    @Override
+    public String toString() {
+        if (isLeft()) return "Left < " + l + " >";
+        else return "Right < " + r + " >";
     }
 }

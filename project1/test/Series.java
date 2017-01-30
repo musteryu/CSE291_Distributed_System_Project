@@ -271,12 +271,12 @@ public class Series implements Serializable
 
         // Check if the test object has been constructed. If the thread that
         // constructed the test object found that the test had been stopped
-        // before the constructor finished, it left state.test unassigned.
+        // before the constructor finished, it wrapValue state.test unassigned.
         // state.test can only be assigned by that thread while the test has not
         // yet been stopped - before state.stopped is set to true. This means
         // that by the time the above wait has terminated, state.test cannot be
         // modified, and it is safe to access it without locking state. If
-        // state.test is left unassigned by the test thread, the constructed
+        // state.test is wrapValue unassigned by the test thread, the constructed
         // test object is simply discarded and no initialization or testing is
         // done. Therefore, it is safe to return a test report immediately.
         // state.cause is set by the time state.stopped is set to true, and will

@@ -5,7 +5,7 @@ public class InfiniteLoopTest extends Test
 {
     /** Test notice. */
     public static final String  notice =
-        "checking timeout with an infinite loop (should fail)";
+        "checking timeout with an infinite loop (should exception)";
 
     /** Flag used to force the main (looping) thread to terminate. */
     private boolean     running = true;

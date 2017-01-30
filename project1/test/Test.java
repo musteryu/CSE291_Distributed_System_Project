@@ -142,7 +142,7 @@ package test;
     may try to run more tests. Failure of a test during cleanup is considered a
     fatal error, and the testing library will not attempt any more tests. This
     is because the test that failed to clean up after itself may be holding
-    exclusive resources, which may cause subsequent tests to fail when they are
+    exclusive resources, which may cause subsequent tests to exception when they are
     unable to acquire them.
 
     <p>
@@ -150,7 +150,7 @@ package test;
     error. This is because the <code>clean</code> method does not attempt to
     terminate <code>initialize</code>, waiting instead for it to complete. If
     the <code>initialize</code> method does not stop on its own soon after it
-    times out, the <code>clean</code> method will also time out and fail.
+    times out, the <code>clean</code> method will also time out and exception.
 
     <p>
     A test may make assumptions about the correctness of certain features, which

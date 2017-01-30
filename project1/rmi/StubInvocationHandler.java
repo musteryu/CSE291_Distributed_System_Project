@@ -1,47 +1,71 @@
 package rmi;
 
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
-public class StubInvocationHandler implements java.lang.reflect.InvocationHandler
-{
-    private Class c;
+class StubInvocationHandler<T> implements java.lang.reflect.InvocationHandler, Serializable {
+    private Class<T> c;
     private InetSocketAddress address;
 
-    public StubInvocationHandler(Class c, InetSocketAddress address)
+    StubInvocationHandler(Class<T> c, InetSocketAddress address)
     {
         this.c = c;
         this.address = address;
+        System.out.println("create invocation handler with address: " + address);
     }
 
+    @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
     {
         String methodName = method.getName();
-        //System.out.println("[StubInvocationHandler.java]: " + methodName);
         switch (methodName) {
             case "hashCode":
-                return this.hashCode();
+                try {
+                    this.c.getMethod("hashCode", method.getParameterTypes());
+                } catch (Exception e) {
+                    return this.hashCode();
+                }
+                break;
             case "toString":
-                return this.toString();
+                try {
+                    this.c.getMethod("toString", method.getParameterTypes());
+                } catch (Exception e) {
+                    return this.toString();
+                }
+                break;
             case "equals":
-                if (args == null || args[0] == null){
+                try {
+                    this.c.getMethod("equals", method.getParameterTypes());
+                } catch (Exception e) {
+                    if (args != null && args.length == 1 && args[0] != null && Proxy.isProxyClass(args[0].getClass())) {
+                        InvocationHandler thisHandler = Proxy.getInvocationHandler(proxy);
+                        InvocationHandler thatHandler = Proxy.getInvocationHandler(args[0]);
+                        if (thisHandler.equals(thatHandler)) {
+                            return true;
+                        }
+                    }
                     return false;
                 }
-                if (args.length == 1 && Proxy.isProxyClass(args[0].getClass())) {
-                    if (!method.getReturnType().getName().equals("boolean")) {
-                        StubInvocationHandler otherStub = (StubInvocationHandler) Proxy.getInvocationHandler(args[0]);
-                        return this.getAddress().equals(otherStub.getAddress()) &&
-                            this.getInterface().equals(otherStub.getInterface());
-                    }
-                }
-                return false;
+                break;
+        }
+        boolean isRmi = false;
+        for (Class<?> ex: method.getExceptionTypes()) {
+            if (ex.getName().equals(RMIException.class.getName())) {
+                isRmi = true;
+                break;
+            }
+        }
+        if (!isRmi) {
+            throw new Exception("invoked method doesn't belong to a remote interface");
         }
 
-        Either response;
+        Response response;
         try {
             response = remoteInvoke(method, args);
         } catch (Exception e) {
@@ -51,51 +75,73 @@ public class StubInvocationHandler implements java.lang.reflect.InvocationHandle
         if (response == null) {
             return null;
         } else {
-            return response.getLeftOrThrowRight();
+            try {
+                return response.getOrThrow();
+            } catch (Throwable throwable) {
+                if (throwable instanceof InvocationTargetException) {
+                    throw ((InvocationTargetException) throwable).getTargetException();
+                } else if (throwable instanceof RMIException) {
+                    throw ((RMIException) throwable);
+                } else {
+                    throw throwable;
+                }
+            }
         }
     }
 
-
-    private Either remoteInvoke(Method method, Object[] args) throws RMIException {
-        Socket connection = new Socket();
+    private Response remoteInvoke(Method method, Object[] args) throws RMIException {
         try {
-            connection.connect(address, 2000);
+            System.out.println("begin connect: " + address);
+            Socket connection = new Socket(address.getHostName(), address.getPort());
             ObjectOutputStream oos = new ObjectOutputStream(connection.getOutputStream());
-//            oos.flush();
-            oos.writeObject(method.getName());
-            for (Object arg: args) {
-                oos.writeObject(arg.getClass().getName());
-                oos.writeObject(arg);
-            }
             oos.flush();
+            if (args != null) {
+                System.out.println("pass in parameters: " + args[0]);
+                oos.writeObject(new Request(method, args));
+            } else {
+                oos.writeObject(new Request(method));
+            }
+            // oos.flush();
+            Thread.sleep(10);
+            ObjectInputStream ois = new ObjectInputStream(connection.getInputStream());
+            Object response = ois.readObject();
+            System.out.println("Get response: " + response);
             oos.close();
-            ObjectInputStream oins = new ObjectInputStream(connection.getInputStream());
-            Object response = oins.readObject();
-            connection.close();
-            return ((Either) response);
+            ois.close();
+            return ((Response) response);
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RMIException(e.getMessage(), e.getCause());
         }
-
     }
 
+    @Override
     public int hashCode() {
-        return this.address.hashCode() + this.c.hashCode();
+        return this.address.hashCode();
     }
 
+    @Override
     public String toString() {
-        String string =  "Stub for RMI " + this.getInterface().toString()         +":\n"+
-                         "Remote Address: " + this.getAddress().toString()       +"\n"+
-                         "Hostname: " + this.getAddress().getHostName()          +"\n"+
-                         "Port: " + String.valueOf(this.getAddress().getPort())       ;
-        return string;
+        return  "Stub for RMI " + this.getInterface().toString()                    +":\n"+
+                "Remote Address: " + this.getInetSocketAddress().toString()         +"\n"+
+                "Hostname: " + this.getInetSocketAddress().getHostName()            +"\n"+
+                "Port: " + String.valueOf(this.getInetSocketAddress().getPort());
     }
 
-    public Class getInterface() {
+    @Override
+    public boolean equals(Object obj) {
+        if (obj != null && this.getClass().isAssignableFrom(obj.getClass())) {
+            final StubInvocationHandler that = ((StubInvocationHandler) obj);
+            return this.address.equals(that.address) && this.c.getName().equals(that.c.getName());
+        }
+        return false;
+    }
+
+    Class getInterface() {
         return this.c;
     }
 
-    public InetSocketAddress getAddress() {
+    InetSocketAddress getInetSocketAddress() {
         return this.address;
     }
 }
