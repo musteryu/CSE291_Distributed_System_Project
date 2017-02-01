@@ -1,23 +1,33 @@
-package PingPong;
 import rmi.*;
 
 import java.net.InetSocketAddress;
 
 public class PingPongClient {
-    protected static PingPong stub = null;
+    protected static PingPongInterface stub = null;
     public static void main(String[] args){
-        InetSocketAddress address =
-                new InetSocketAddress(7000);
-        stub = Stub.create(PingPong.class,address);
+        if(args.length != 3) {
+            System.err.println("Usage : java PingPongClient <hostname> <port number> <id number>");
+            System.exit(1);
+        }
+        String hostName = args[0];
+        int port = Integer.valueOf(args[1]);
+        int idNumber = Integer.valueOf(args[2]);
+        InetSocketAddress ad = new InetSocketAddress(hostName,port);
+        stub = Stub.create(PingPongInterface.class, ad);
+        int successCount = 0;
 
-        String response;
-        for (int i = 0; i < 4; i++) {
-            response = stub.ping(88888);
-            if (response.startsWith("Pong")){
-                continue;
-            } else {
-                throw new Error();
+        try {
+            for(int i = 0 ; i < 4 ; i++){
+                String response = stub.ping(idNumber);
+                int res = Integer.valueOf(response.substring(4));
+                if(idNumber == res){
+                    successCount++;
+                }
             }
+            System.out.println("4 Tests Completed, " + String.valueOf(successCount) + " Tests Passed");
+
+        } catch (RMIException e) {
+            e.printStackTrace();
         }
     }
 }
