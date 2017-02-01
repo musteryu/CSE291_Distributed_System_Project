@@ -275,9 +275,12 @@ public class Skeleton<T>
                         futures.add(this.pool.submit(worker));
                     }
                 } catch (SocketException se) {
-                    this.active = false;
+                    System.out.println("> SocketException: " + se.getMessage());
+                    if (serverSocket.isClosed()) {
+                        this.active = false;
+                    }
                 } catch (IOException e) {
-//                    if (Skeleton.this.isActive() && Skeleton.this.listen_error(e)) continue;
+                    if (Skeleton.this.isActive() && Skeleton.this.listen_error(e)) continue;
                     this.active = false;
                     Skeleton.this.stopEx = e;
                     e.printStackTrace();
