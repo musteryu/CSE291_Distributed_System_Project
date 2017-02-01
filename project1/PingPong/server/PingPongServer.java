@@ -8,7 +8,7 @@ public class PingPongServer {
     public static void main(String[] args){
         PingPongServerFactory factory = new PingPongServerFactory();
         server = factory.makePingPongServer();
-        InetSocketAddress address = new InetSocketAddress("localhost", 7000);
+        InetSocketAddress address = new InetSocketAddress("", 7000);
         skeleton = new Skeleton<>(PingPongInterface.class, server, address);
         try {
             skeleton.start();
