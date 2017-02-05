@@ -8,16 +8,3 @@ RUN \
 
 # Define commonly used JAVA_HOME variable
 ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
-
-RUN mkdir /src
-RUN mkdir /src/rmi
-
-ADD rmi /src/rmi
-
-ADD PingPongServer.java /src
-
-ADD PingPongInterface.java /src
-
-ADD PingPongServerFactory.java /src
-
-ADD PingPong.java /src
