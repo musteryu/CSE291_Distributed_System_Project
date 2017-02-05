@@ -14,5 +14,5 @@ hs_err_pid*
 
 # intellij output dir
 project1/out/
-project1/*.class
+*.class
 project1/.idea/
