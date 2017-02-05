@@ -1,5 +1,6 @@
 rm -rf dataVolume/rmi
 cp -r ../rmi dataVolume/rmi
+rm -rf $(JAVAFILES:.java=.class) *.zip $(DOCDIR) $(ALLDOCDIR)
 
 cd dataVolume
 docker build -t data-volume-image .
