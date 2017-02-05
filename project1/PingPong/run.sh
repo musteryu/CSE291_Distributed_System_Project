@@ -1,3 +1,4 @@
+rm -rf dataVolume/rmi
 cp -r ../rmi dataVolume/rmi
 
 cd dataVolume

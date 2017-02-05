@@ -171,25 +171,17 @@ public class Skeleton<T>
             System.out.println("> Skeleton is already running on address: " + this.address);
             return;
         }
+
         /* try to open socket */
         ServerSocket servsock = null;
         try {
-            servsock = new ServerSocket();
+            if (this.address == null){
+                this.address = new InetSocketAddress(7000);
+            }
+            servsock = new ServerSocket(this.address.getPort());
         } catch (IOException ioe) {
             System.out.println("> Skeleton failed to open TCP socket");
             throw new RMIException("Skeleton failed to open TCP socket", ioe.getCause());
-        }
-        /* try to bind socket */
-        try {
-            if (this.address == null) {
-                servsock.bind(new InetSocketAddress("0.0.0.0", 0));
-            } else {
-                servsock.bind(this.address);
-            }
-            this.address = new InetSocketAddress(servsock.getInetAddress(), servsock.getLocalPort());
-        } catch (IOException e) {
-            System.out.println("> Skeleton failed to bind address");
-            throw new rmi.RMIException("Skeleton failed to bind address", e.getCause());
         }
         /* open listener thread */
         this.serverSocket = servsock;
