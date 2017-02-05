@@ -12,6 +12,11 @@ public class PingPongClient {
         String hostName = args[0];
         int port = Integer.valueOf(args[1]);
         int idNumber = Integer.valueOf(args[2]);
+        try {
+            Thread.sleep(1000);                 //1000 milliseconds is one second.
+        } catch(InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
         InetSocketAddress ad = new InetSocketAddress(hostName,port);
         stub = Stub.create(PingPongInterface.class, ad);
         int successCount = 0;
