@@ -18,7 +18,7 @@ public class PingPongClient {
             Thread.currentThread().interrupt();
         }
         InetSocketAddress ad = new InetSocketAddress(hostName,port);
-        stub = Stub.create(PingPongInterface.class, ad);
+        stub = PingPongServerFactory.makePingPongServer(ad);
         int successCount = 0;
 
         try {
