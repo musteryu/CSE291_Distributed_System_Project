@@ -22,9 +22,11 @@ import java.util.*;
 public class Path implements Iterable<String>, Comparable<Path>, Serializable
 {
     /** Creates a new path which represents the root directory. */
+    private static final char DELIMETER = '/';
+    List<String> components;
     public Path()
     {
-        throw new UnsupportedOperationException("not implemented");
+        this.components = new LinkedList<>();
     }
 
     /** Creates a new path by appending the given component to an existing path.
@@ -38,7 +40,11 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     */
     public Path(Path path, String component)
     {
-        throw new UnsupportedOperationException("not implemented");
+        this();
+        for(int i = 0; i < path.components.size(); i++){
+            this.components.add(path.components.get(i));
+        }
+        this.components.add(component);
     }
 
     /** Creates a new path from a path string.
@@ -55,7 +61,17 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public Path(String path)
     {
-        throw new UnsupportedOperationException("not implemented");
+        this();
+        if(path.length() == 0 || path.charAt(0) != DELIMETER){
+            throw new IllegalArgumentException("Path string does not begin with '/'.");
+        }
+
+        if(path.contains(":")){
+            throw new IllegalArgumentException("Path string contains ':'.");
+        }
+
+        String[] components = path.split("/");
+        this.components.addAll(Arrays.asList(components));
     }
 
     /** Returns an iterator over the components of the path.
@@ -69,7 +85,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public Iterator<String> iterator()
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.components.listIterator();
     }
 
     /** Lists the paths of all files in a directory tree on the local
@@ -94,7 +110,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public boolean isRoot()
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.components.size() == 0;
     }
 
     /** Returns the path to the parent of this path.
@@ -104,7 +120,14 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public Path parent()
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(this.components.size() == 0){
+            throw new IllegalArgumentException("Path is root.");
+        }
+        Path parent = new Path();
+        for(int i = 0; i < this.components.size() - 1; i++){
+            parent.components.add(this.components.get(i));
+        }
+        return parent;
     }
 
     /** Returns the last component in the path.
@@ -115,7 +138,10 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public String last()
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(this.components.size() == 0){
+            throw new IllegalArgumentException("Path is root.");
+        }
+        return this.components.get(this.components.size()-1);
     }
 
     /** Determines if the given path is a subpath of this path.
@@ -197,14 +223,27 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public boolean equals(Object other)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(other instanceof Path){
+            Path another = ((Path) other);
+
+            if (this.components.size() != another.components.size()){
+                return false;
+            }
+            for(int i = 0; i < this.components.size();i++){
+                if(!this.components.get(i).equals(another.components.get(i))){
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     /** Returns the hash code of the path. */
     @Override
     public int hashCode()
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.components.hashCode();
     }
 
     /** Converts the path to a string.
@@ -218,6 +257,6 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public String toString()
     {
-        throw new UnsupportedOperationException("not implemented");
+
     }
 }
