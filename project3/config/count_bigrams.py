@@ -13,7 +13,9 @@ if __name__ == '__main__':
         counted, i = 0, 0
         while counted < total * 0.1:
             count, x, y = bigrams[i]
-            print "Bigram (%s,%s) has count = %d" %(x, y, count)
+            #print "Bigram (%s,%s) has count = %d" %(x, y, count)
             i += 1
             counted += count
-        print "Bigrams above consists top 10% of bigrams"
+        print "Total number of bigrams = %d." % len(bigrams);
+        print "The most common bigram is (%s,%s)." %(bigrams[0][1],bigrams[0][2])
+        print "%d bigrams required to add up to 10%% of all bigrams." % i

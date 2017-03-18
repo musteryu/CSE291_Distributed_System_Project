@@ -1,7 +1,7 @@
 #!/bin/bash
 N=${1:-5}
 
-echo "\nbuild docker hadoop image\n"
+echo "build docker hadoop image"
 
 sudo docker rm -f hadoop-master &> /dev/null
 i=1

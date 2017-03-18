@@ -1,14 +1,6 @@
 #!/bin/bash
-echo -e "\n"
-
 $HADOOP_HOME/sbin/start-dfs.sh
-
-echo -e "\n"
-
 $HADOOP_HOME/sbin/start-yarn.sh
-
-echo -e "\n"
-
 mkdir input
 mkdir output
 
@@ -24,9 +16,8 @@ hdfs dfs -put ./input/* input
 # run wordcount
 hadoop jar bc.jar BigramCount input output
 
-# print the input file
-echo -e "\nbigram count input:"
-
-# print the output of wordcount
-echo -e "\nbigram count output:"
+# direct the output to a file
 hdfs dfs -cat output/* > ./output/bigram_result
+
+# process the bigram counts
+python count_bigrams.py output/bigram_result
